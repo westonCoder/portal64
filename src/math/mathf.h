@@ -23,6 +23,8 @@ float powf(float base, float exp);
 
 float cosf(float in);
 float sinf(float in);
+double atan2(double x, double y);
+double asin(double in);
 float fabsf(float in);
 float floorf(float in);
 float ceilf(float in);

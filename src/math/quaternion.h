@@ -31,5 +31,7 @@ void quatApplyAngularVelocity(struct Quaternion* input, struct Vector3* w, float
 void quatDecompose(struct Quaternion* input, struct Vector3* axis, float* angle);
 
 float quatDot(struct Quaternion* a, struct Quaternion* b);
+void quat_fromEulerZYX(struct Vector3 eulerZYX, struct Quaternion* out);
+void quat_toEulerZYX(struct Quaternion q, struct Vector3* out);
 
 #endif

@@ -21,6 +21,7 @@ enum PlayerFlags {
     PlayerHasSecondPortalGun = (1 << 2),
     PlayerIsDead = (1 << 3),
     PlayerIsUnderwater = (1 << 4),
+    PlayerCrouched = (1 << 5),
 };
 
 struct Player {
@@ -42,6 +43,8 @@ struct Player {
 };
 
 void playerInit(struct Player* player, struct Location* startLocation, struct Vector3* velocity);
+void playerLookStraight(struct Player* player);
+int playerLookingTooFarUpDown(struct Player* player, float threshold);
 void playerUpdate(struct Player* player, struct Transform* cameraTransform);
 
 void playerGetMoveBasis(struct Transform* transform, struct Vector3* forward, struct Vector3* right);

@@ -54,6 +54,22 @@ struct ColliderTypeData gPlayerColliderData = {
     &gCollisionCylinderCallbacks,
 };
 
+struct CollisionCylinder gCrouchingPlayerCollider = {
+    0.25f,
+    0.40f,
+    gPlayerColliderEdgeVectors,
+    sizeof(gPlayerColliderEdgeVectors) / sizeof(*gPlayerColliderEdgeVectors),
+    gPlayerColliderFaces,
+};
+
+struct ColliderTypeData gCrouchingPlayerColliderData = {
+    CollisionShapeTypeCylinder,
+    &gCrouchingPlayerCollider,
+    0.0f,
+    0.6f,
+    &gCollisionCylinderCallbacks,
+};
+
 void playerRender(void* data, struct DynamicRenderDataList* renderList, struct RenderState* renderState) {
     struct Player* player = (struct Player*)data;
 
@@ -426,6 +442,70 @@ struct SKAnimationClip* playerDetermineNextClip(struct Player* player, float* bl
 
 }
 
+void playerLookStraight(struct Player* player){
+    /*
+    Take Player rotation and cancel out any yaw.
+
+    Args:
+        player:Player object 
+    Returns:
+        None
+    */
+    struct Vector3 euler = gZeroVec;
+
+    quat_toEulerZYX(player->lookTransform.rotation, &euler);
+
+    float pi = 3.1415926535897932384626433;
+    if (euler.z < 0 && euler.z > -pi/2){
+        euler.z = 0.0;
+    }
+    else if (euler.z < -pi/2){
+        euler.z = pi;
+    }
+    else if (euler.z > 0 && euler.z < pi/2){
+        euler.z = 0.0;
+    }
+    else{
+        euler.z = pi;
+    }
+
+    quat_fromEulerZYX(euler, &player->lookTransform.rotation);
+}
+
+int playerLookingTooFarUpDown(struct Player* player, float threshold){
+    /*
+    Determines if player is looking too far up or down given a tolorance.
+
+    Args:
+        player: Player object 
+        threshold: Degrees from directly up or down before its 
+            "too far"
+    Returns:
+        looking_too_far: 1=too close to up or down, 0=not too close
+    */
+    int looking_too_far = 1;
+    float pi = 3.1415926535897932384626433;
+    struct Vector3 euler = gZeroVec;
+    quat_toEulerZYX(player->lookTransform.rotation, &euler);
+
+    float thresh_rad = (pi/180.0f) * threshold;
+
+    if (euler.z <= (0) && euler.z > ((-pi/2) + thresh_rad)){
+        looking_too_far = 0;
+    }
+    else if (euler.z < ((-pi/2)-thresh_rad)  && euler.z >= (-pi)){
+        looking_too_far = 0;
+    }
+    else if (euler.z >= (0) && euler.z < ((pi/2)-thresh_rad)){
+        looking_too_far = 0;
+    }
+    else if (euler.z > ((pi/2)+thresh_rad)  && euler.z <= (pi)){
+        looking_too_far = 0;
+    }
+
+    return looking_too_far;
+}
+
 void playerUpdate(struct Player* player, struct Transform* cameraTransform) {
     struct Vector3 forward;
     struct Vector3 right;
@@ -437,23 +517,71 @@ void playerUpdate(struct Player* player, struct Transform* cameraTransform) {
 
     int isDead = playerIsDead(player);
 
-    if (!isDead && (player->flags & PlayerFlagsGrounded) && controllerGetButtonDown(0, A_BUTTON)) {
+    if (!isDead && (player->flags & PlayerFlagsGrounded) && controllerGetButtonDown(0, A_BUTTON) && player->body.velocity.y == 0) {
         player->body.velocity.y = JUMP_IMPULSE;
     }
 
     struct Vector3 targetVelocity = gZeroVec;
 
+    float camera_y_modifier = 0.0;
+    if (player->flags & PlayerCrouched){
+        camera_y_modifier = -0.25;
+    }
+    else{
+        camera_y_modifier = 0.0;
+    }
+
     if (!isDead) {
-        if (controllerGetButton(0, L_CBUTTONS | L_JPAD)) {
+        if (controllerGetButton(0, L_JPAD)) {
             vector3AddScaled(&targetVelocity, &right, -PLAYER_SPEED, &targetVelocity);
-        } else if (controllerGetButton(0, R_CBUTTONS | R_JPAD)) {
+        } else if (controllerGetButton(0, R_JPAD)) {
             vector3AddScaled(&targetVelocity, &right, PLAYER_SPEED, &targetVelocity);
         }
 
-        if (controllerGetButton(0, U_CBUTTONS | U_JPAD)) {
+        if (controllerGetButton(0, U_JPAD)) {
             vector3AddScaled(&targetVelocity, &forward, -PLAYER_SPEED, &targetVelocity);
-        } else if (controllerGetButton(0, D_CBUTTONS | D_JPAD)) {
+        } else if (controllerGetButton(0, D_JPAD)) {
             vector3AddScaled(&targetVelocity, &forward, PLAYER_SPEED, &targetVelocity);
+        }
+
+        // if player isnt crouched, crouch
+        if (!(player->flags & PlayerCrouched) && (controllerGetButtonDown(0, R_CBUTTONS))){
+            player->flags |= PlayerCrouched;
+            camera_y_modifier = -0.25;
+            collisionSceneRemoveDynamicObject(&player->collisionObject);
+            collisionObjectReInit(&player->collisionObject, &gCrouchingPlayerColliderData, &player->body, 1.0f, PLAYER_COLLISION_LAYERS);
+            collisionSceneAddDynamicObject(&player->collisionObject);
+            collisionObjectUpdateBB(&player->collisionObject);
+        }
+        //if player crouched, uncrouch
+        else if ((player->flags & PlayerCrouched) && (controllerGetButtonDown(0, R_CBUTTONS))){
+            player->flags &= ~PlayerCrouched;
+            camera_y_modifier = 0.0;
+            collisionSceneRemoveDynamicObject(&player->collisionObject);
+            collisionObjectReInit(&player->collisionObject, &gPlayerColliderData, &player->body, 1.0f, PLAYER_COLLISION_LAYERS);
+            collisionSceneAddDynamicObject(&player->collisionObject);
+            collisionObjectUpdateBB(&player->collisionObject);
+        }
+        //look straight forward
+        if (controllerGetButtonDown(0, U_CBUTTONS)){
+            // if player is looking close to directly up or down, don't do look straight
+            if (!playerLookingTooFarUpDown(player, 0.5f)) {
+                playerLookStraight(player);
+            }
+        }
+        //look behind
+        if (controllerGetButtonDown(0, D_CBUTTONS)){
+            // if player is looking close to directly up or down, don't do look behind
+            if (!playerLookingTooFarUpDown(player, 0.5f)) {
+                struct Quaternion behindRotation;
+                behindRotation.x=(player->lookTransform.rotation.z);
+                behindRotation.y=player->lookTransform.rotation.w;
+                behindRotation.z=(-1.0f*player->lookTransform.rotation.x);
+                behindRotation.w=(-1.0f*player->lookTransform.rotation.y);
+                player->lookTransform.rotation = behindRotation;
+                //fix wrong pitch
+                playerLookStraight(player);
+            }
         }
     }
     
@@ -533,6 +661,7 @@ void playerUpdate(struct Player* player, struct Transform* cameraTransform) {
     int didPassThroughPortal = rigidBodyCheckPortals(&player->body);
 
     player->lookTransform.position = player->body.transform.position;
+    player->lookTransform.position.y += camera_y_modifier;
     player->lookTransform.rotation = player->body.transform.rotation;
     quatIdent(&player->body.transform.rotation);
 
