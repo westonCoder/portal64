@@ -293,6 +293,15 @@ float quatDot(struct Quaternion* a, struct Quaternion* b) {
 }
 
 void quat_fromEulerZYX(struct Vector3 eulerZYX, struct Quaternion* out){
+    /*
+    Convert Euler to Quaterion.
+
+    Args:
+        eulerZYX: Euler to convert
+        out: Output quaternion
+    Returns:
+        None
+    */
     double cy = cos(eulerZYX.x * 0.5);
     double sy = sin(eulerZYX.x * 0.5);
     double cr = cos(eulerZYX.z * 0.5);
@@ -307,20 +316,27 @@ void quat_fromEulerZYX(struct Vector3 eulerZYX, struct Quaternion* out){
 }
 
 void quat_toEulerZYX(struct Quaternion q, struct Vector3* out){
-    double pi = 3.14159265358979323846264338327950288419716939937510582097494459230781640628620899862803482534211706798214808651328230664709384460955058223172535940812848111745028410270193852110555964462294895493038196442881097566593344612847564823378678316527120190914564856692346034861045432664821339360726024914127372458700660631558817488152092096282925409171536436789259036001133053054882046652138414695194151160943305727036575959195309218611738193261179310511854807446237996274956735188575272489122793818301194912983367336244065664308602139494639522473;
-    // Roll (x-axis rotation)
+    /*
+    Convert Quaterion to Euler.
+
+    Args:
+        q: Quaterion to convert
+        out: Output Euler
+    Returns:
+        None
+    */
+    double pi = 3.1415926535897932384626433832795028841;
+
     double sinr_cosp = +2.0 * (q.w * q.x + q.y * q.z);
     double cosr_cosp = +1.0 - 2.0 * (q.x * q.x + q.y * q.y);
     out->z = atan2(sinr_cosp, cosr_cosp);// could be wrong??
 
-    // Pitch (y-axis rotation)
     double sinp = +2.0 * (q.w * q.y - q.z * q.x);
     if (fabsf(sinp) >= 1)
         out->y = (pi / 2) *signf(sinp); // use 90 degrees if out of range
     else
         out->y = asin(sinp);
 
-    // Yaw (z-axis rotation)
     double siny_cosp = +2.0 * (q.w * q.z + q.x * q.y);
     double cosy_cosp = +1.0 - 2.0 * (q.y * q.y + q.z * q.z);
     out->x = atan2(siny_cosp, cosy_cosp);
