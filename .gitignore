@@ -19,3 +19,4 @@ tools/skeletool64
 tools/vtf2png
 
 src/controls/controller-data.h
+skelatool64/*.zip
