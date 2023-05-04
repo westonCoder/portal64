@@ -135,36 +135,40 @@ int rigidBodyCheckPortals(struct RigidBody* rigidBody) {
 
         int mask = (RigidBodyFlagsInFrontPortal0 << i);
 
-        if (localPoint.z < 0.0f) {
-            newFlags |= mask;
-        }
+        // if the player ever happens to be behind a portal somehow but not teleported
+        // they will immediately be teleported to the other one.
+        if (!(((((localPoint.z < 0.0f)&&(i==1)))||((localPoint.z > 0.0f)&&(i==0))) && !((RigidBodyWasTouchingPortalA << i) & rigidBody->flags) && ((RigidBodyIsTouchingPortalA << i) & rigidBody->flags))){
+            if (localPoint.z < 0.0f) {
+                newFlags |= mask;
+            }
 
-        if (!((RigidBodyIsTouchingPortalA << i) & rigidBody->flags) && !((RigidBodyWasTouchingPortalA << i) & rigidBody->flags)) {
-            continue;
-        }
+            if (!((RigidBodyIsTouchingPortalA << i) & rigidBody->flags) && !((RigidBodyWasTouchingPortalA << i) & rigidBody->flags)) {
+                continue;
+            }
 
-        // skip checking if portal was crossed if this is the
-        // first frame portals were active or the object was
-        // just teleported
-        if (rigidBody->flags & (
-            RigidBodyFlagsPortalsInactive | 
-            (RigidBodyFlagsCrossedPortal0 << (1 - i))) ||
-            (newFlags & RigidBodyFlagsCrossedPortal0)
-        ) {
-            continue;
-        }
+            // skip checking if portal was crossed if this is the
+            // first frame portals were active or the object was
+            // just teleported
+            if (rigidBody->flags & (
+                RigidBodyFlagsPortalsInactive | 
+                (RigidBodyFlagsCrossedPortal0 << (1 - i))) ||
+                (newFlags & RigidBodyFlagsCrossedPortal0)
+            ) {
+                continue;
+            }
 
-        // 0 !newFlags & flags
-        // 1 newFlags & !flags
+            // 0 !newFlags & flags
+            // 1 newFlags & !flags
 
-        // the xorMask changes which direction
-        // each portal needs to be crossed in 
-        // order to transmit an object
-        int xorMask = i == 0 ? 0 : mask;
+            // the xorMask changes which direction
+            // each portal needs to be crossed in 
+            // order to transmit an object
+            int xorMask = i == 0 ? 0 : mask;
 
-        // check if the body crossed the portal
-        if (!((~newFlags ^ xorMask) & (rigidBody->flags ^ xorMask) & mask)) {
-            continue;
+            // check if the body crossed the portal
+            if (!((~newFlags ^ xorMask) & (rigidBody->flags ^ xorMask) & mask)) {
+                continue;
+            }
         }
 
         struct Transform* otherPortal = gCollisionScene.portalTransforms[1 - i];
@@ -202,6 +206,39 @@ void rigidBodyTeleport(struct RigidBody* rigidBody, struct Transform* from, stru
     struct Vector3 localPoint;
 
     transformPointInverseNoScale(from, &rigidBody->transform.position, &localPoint);
+
+    transformPoint(to, &localPoint, &rigidBody->transform.position);
+
+    struct Quaternion inverseARotation;
+    quatConjugate(&from->rotation, &inverseARotation);
+
+    struct Quaternion rotationTransfer;
+    quatMultiply(&to->rotation, &inverseARotation, &rotationTransfer);
+
+    struct Vector3 relativeVelocity;
+    vector3Sub(&rigidBody->velocity, fromVelocity, &relativeVelocity);
+
+    quatMultVector(&rotationTransfer, &relativeVelocity, &relativeVelocity);
+
+    vector3Add(&relativeVelocity, toVelocity, &rigidBody->velocity);
+
+    quatMultVector(&rotationTransfer, &rigidBody->angularVelocity, &rigidBody->angularVelocity);
+
+    struct Quaternion newRotation;
+
+    quatMultiply(&rotationTransfer, &rigidBody->transform.rotation, &newRotation);
+
+    rigidBody->transform.rotation = newRotation;
+
+    rigidBody->currentRoom = toRoom;
+}
+
+void rigidBodyTeleportWithZOffset(struct RigidBody* rigidBody, struct Transform* from, struct Transform* to, struct Vector3* fromVelocity, struct Vector3* toVelocity, int toRoom, float offset) {
+    struct Vector3 localPoint;
+
+    transformPointInverseNoScale(from, &rigidBody->transform.position, &localPoint);
+
+    localPoint.z += offset;
 
     transformPoint(to, &localPoint, &rigidBody->transform.position);
 

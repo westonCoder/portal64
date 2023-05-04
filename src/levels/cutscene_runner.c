@@ -170,6 +170,17 @@ void cutsceneRunnerStartStep(struct CutsceneRunner* runner) {
             quatMultVector(&location->transform.rotation, &gRight, &transformUp);
             vector3Negate(&transformUp, &transformUp);
             vector3AddScaled(&location->transform.position, &firingRay.dir, -0.1f, &firingRay.origin);
+            //if player is in hypothetical portal being shot (and the shot is valid), then nudge player out before actually shooting
+            if (sceneFirePortal(&gScene, &firingRay, &transformUp, step->openPortal.portalIndex, location->roomIndex, 0, 1)){
+                if (gScene.player.body.flags & (RigidBodyIsTouchingPortalA|RigidBodyWasTouchingPortalA) && (step->openPortal.portalIndex==0)){
+                    gScene.player.body.velocity = gZeroVec;
+                    rigidBodyTeleportWithZOffset(&gScene.player.body, &gScene.player.body.transform, &gScene.portals[0].transform, &gZeroVec, &gZeroVec, gScene.portals[0].roomIndex, -0.35);
+                }
+                else if (gScene.player.body.flags & (RigidBodyIsTouchingPortalB|RigidBodyWasTouchingPortalB) && (step->openPortal.portalIndex==1)){
+                    gScene.player.body.velocity = gZeroVec;
+                    rigidBodyTeleportWithZOffset(&gScene.player.body, &gScene.player.body.transform, &gScene.portals[0].transform, &gZeroVec, &gZeroVec, gScene.portals[1].roomIndex, +0.35);
+                }
+            }
             sceneFirePortal(&gScene, &firingRay, &transformUp, step->openPortal.portalIndex, location->roomIndex, 0, 0);
             break;
         }

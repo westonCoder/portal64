@@ -290,6 +290,13 @@ void sceneCheckPortals(struct Scene* scene) {
     }
 
     if (fireOrange && hasOrange && !playerIsGrabbing(&scene->player)) {
+        //if player is in hypothetical portal being shot, then nudge player out before actually shooting
+        if (sceneFirePortal(scene, &raycastRay, &playerUp, 0, scene->player.body.currentRoom, 1, 1)){
+            if (scene->player.body.flags & (RigidBodyIsTouchingPortalA|RigidBodyWasTouchingPortalA)){
+                scene->player.body.velocity = gZeroVec;
+                rigidBodyTeleportWithZOffset(&scene->player.body, &scene->player.body.transform, &scene->portals[0].transform, &gZeroVec, &gZeroVec, scene->portals[0].roomIndex, -0.35);
+            }
+        }
         sceneFirePortal(scene, &raycastRay, &playerUp, 0, scene->player.body.currentRoom, 1, 0);
         scene->player.flags |= PlayerJustShotPortalGun;
         scene->last_portal_indx_shot=0;
@@ -297,6 +304,13 @@ void sceneCheckPortals(struct Scene* scene) {
     }
 
     if ((fireBlue || (!hasOrange && fireOrange)) && hasBlue && !playerIsGrabbing(&scene->player)) {
+        //if player is in hypothetical portal being shot, then nudge player out before actually shooting
+        if (sceneFirePortal(scene, &raycastRay, &playerUp, 1, scene->player.body.currentRoom, 1, 1)){
+            if (scene->player.body.flags & (RigidBodyIsTouchingPortalB|RigidBodyWasTouchingPortalB)){
+                scene->player.body.velocity = gZeroVec;
+                rigidBodyTeleportWithZOffset(&scene->player.body, &scene->player.body.transform, &scene->portals[1].transform, &gZeroVec, &gZeroVec, scene->portals[1].roomIndex, +0.35);
+            }
+        }
         sceneFirePortal(scene, &raycastRay, &playerUp, 1, scene->player.body.currentRoom, 1, 0);
         scene->player.flags |= PlayerJustShotPortalGun;
         scene->last_portal_indx_shot=1;
