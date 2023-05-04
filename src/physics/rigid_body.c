@@ -135,36 +135,40 @@ int rigidBodyCheckPortals(struct RigidBody* rigidBody) {
 
         int mask = (RigidBodyFlagsInFrontPortal0 << i);
 
-        if (localPoint.z < 0.0f) {
-            newFlags |= mask;
-        }
+        // if the player ever happens to be behind a portal somehow but not teleported
+        // they will immediately be teleported to the other one.
+        if (!(((((localPoint.z < 0.0f)&&(i==1)))||((localPoint.z > 0.0f)&&(i==0))) && !((RigidBodyWasTouchingPortalA << i) & rigidBody->flags) && ((RigidBodyIsTouchingPortalA << i) & rigidBody->flags))){
+            if (localPoint.z < 0.0f) {
+                newFlags |= mask;
+            }
 
-        if (!((RigidBodyIsTouchingPortalA << i) & rigidBody->flags) && !((RigidBodyWasTouchingPortalA << i) & rigidBody->flags)) {
-            continue;
-        }
+            if (!((RigidBodyIsTouchingPortalA << i) & rigidBody->flags) && !((RigidBodyWasTouchingPortalA << i) & rigidBody->flags)) {
+                continue;
+            }
 
-        // skip checking if portal was crossed if this is the
-        // first frame portals were active or the object was
-        // just teleported
-        if (rigidBody->flags & (
-            RigidBodyFlagsPortalsInactive | 
-            (RigidBodyFlagsCrossedPortal0 << (1 - i))) ||
-            (newFlags & RigidBodyFlagsCrossedPortal0)
-        ) {
-            continue;
-        }
+            // skip checking if portal was crossed if this is the
+            // first frame portals were active or the object was
+            // just teleported
+            if (rigidBody->flags & (
+                RigidBodyFlagsPortalsInactive | 
+                (RigidBodyFlagsCrossedPortal0 << (1 - i))) ||
+                (newFlags & RigidBodyFlagsCrossedPortal0)
+            ) {
+                continue;
+            }
 
-        // 0 !newFlags & flags
-        // 1 newFlags & !flags
+            // 0 !newFlags & flags
+            // 1 newFlags & !flags
 
-        // the xorMask changes which direction
-        // each portal needs to be crossed in 
-        // order to transmit an object
-        int xorMask = i == 0 ? 0 : mask;
+            // the xorMask changes which direction
+            // each portal needs to be crossed in 
+            // order to transmit an object
+            int xorMask = i == 0 ? 0 : mask;
 
-        // check if the body crossed the portal
-        if (!((~newFlags ^ xorMask) & (rigidBody->flags ^ xorMask) & mask)) {
-            continue;
+            // check if the body crossed the portal
+            if (!((~newFlags ^ xorMask) & (rigidBody->flags ^ xorMask) & mask)) {
+                continue;
+            }
         }
 
         struct Transform* otherPortal = gCollisionScene.portalTransforms[1 - i];

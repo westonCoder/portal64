@@ -456,9 +456,9 @@ void playerGivePortalGun(struct Player* player, int flags) {
     player->flags |= flags;
 }
 
-void playerUpdateSpeedSound(struct Player* player) {
+void playerUpdateSpeedSound(struct Player* player, float vel) {
     float soundPlayerVolume;
-    soundPlayerVolume = PLAYER_SPEED*8 - sqrtf(vector3MagSqrd(&player->body.velocity))*0.70;
+    soundPlayerVolume = PLAYER_SPEED*8 - vel*0.70;
     soundPlayerVolume = clampf(soundPlayerVolume, 0.0, PLAYER_SPEED*8);
     soundPlayerVolume /= PLAYER_SPEED*8;
     soundPlayerVolume = 1.0 - soundPlayerVolume;
@@ -611,7 +611,6 @@ void playerUpdate(struct Player* player, struct Transform* cameraTransform) {
     float acceleration = 0.0f;
     float velocitySqrd = vector3MagSqrd(&player->body.velocity);
     int isFast = velocitySqrd >= PLAYER_SPEED * PLAYER_SPEED;
-    playerUpdateSpeedSound(player);
 
     if (!(player->flags & PlayerFlagsGrounded)) {
         if (isFast) {
@@ -803,6 +802,18 @@ void playerUpdate(struct Player* player, struct Transform* cameraTransform) {
         }
     }
 
+    //get the true velocity to use for fast falling sound
+    if (!(player->body.flags & (RigidBodyFlagsCrossedPortal0| RigidBodyFlagsCrossedPortal1))) {
+        float deltaPos;
+        float trueVel;
+        deltaPos = vector3DistSqrd(&prevPos, &player->body.transform.position);
+        deltaPos = sqrtf(deltaPos);
+        trueVel = deltaPos/FIXED_DELTA_TIME;
+        //max portal speed is also the max speed to update the speed sound
+        if (trueVel < MAX_PORTAL_SPEED){
+            playerUpdateSpeedSound(player, trueVel);
+        }
+    }
     // player not moving on ground
     if ((player->flags & PlayerFlagsGrounded) && (player->body.velocity.x == 0) && (player->body.velocity.z == 0)){
         player->stepTimer = STEP_TIME;
@@ -818,5 +829,4 @@ void playerUpdate(struct Player* player, struct Transform* cameraTransform) {
             player->currentFoot = !player->currentFoot;
         }
     }
-
 }

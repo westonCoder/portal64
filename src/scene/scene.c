@@ -248,6 +248,7 @@ void sceneCheckPortals(struct Scene* scene) {
         return;
     }
 
+
     struct Ray raycastRay;
     struct Vector3 playerUp;
     raycastRay.origin = scene->player.lookTransform.position;
@@ -255,28 +256,31 @@ void sceneCheckPortals(struct Scene* scene) {
     quatMultVector(&scene->player.lookTransform.rotation, &raycastRay.dir, &raycastRay.dir);
     quatMultVector(&scene->player.lookTransform.rotation, &gUp, &playerUp);
 
-    int fireBlue = controllerActionGet(ControllerActionOpenPortal0);
-    int fireOrange = controllerActionGet(ControllerActionOpenPortal1);
+    // player can only shoot if they arent touching portal
+    if (!(scene->player.body.flags & (RigidBodyIsTouchingPortalA|RigidBodyIsTouchingPortalB|RigidBodyWasTouchingPortalA|RigidBodyWasTouchingPortalB|RigidBodyFlagsCrossedPortal0|RigidBodyFlagsCrossedPortal1))){
+        int fireBlue = controllerActionGet(ControllerActionOpenPortal0);
+        int fireOrange = controllerActionGet(ControllerActionOpenPortal1);
 
-    int hasBlue = (scene->player.flags & PlayerHasFirstPortalGun) != 0;
-    int hasOrange = (scene->player.flags & PlayerHasSecondPortalGun) != 0;
+        int hasBlue = (scene->player.flags & PlayerHasFirstPortalGun) != 0;
+        int hasOrange = (scene->player.flags & PlayerHasSecondPortalGun) != 0;
 
-    if (fireOrange && hasOrange && !playerIsGrabbing(&scene->player)) {
-        sceneFirePortal(scene, &raycastRay, &playerUp, 0, scene->player.body.currentRoom, 1, 0);
-        scene->player.flags |= PlayerJustShotPortalGun;
-        scene->last_portal_indx_shot=0;
-        soundPlayerPlay(soundsPortalgunShoot[0], 1.0f, 1.0f, NULL, NULL);
-    }
+        if (fireOrange && hasOrange && !playerIsGrabbing(&scene->player)) {
+            sceneFirePortal(scene, &raycastRay, &playerUp, 0, scene->player.body.currentRoom, 1, 0);
+            scene->player.flags |= PlayerJustShotPortalGun;
+            scene->last_portal_indx_shot=0;
+            soundPlayerPlay(soundsPortalgunShoot[0], 1.0f, 1.0f, NULL, NULL);
+        }
 
-    if ((fireBlue || (!hasOrange && fireOrange)) && hasBlue && !playerIsGrabbing(&scene->player)) {
-        sceneFirePortal(scene, &raycastRay, &playerUp, 1, scene->player.body.currentRoom, 1, 0);
-        scene->player.flags |= PlayerJustShotPortalGun;
-        scene->last_portal_indx_shot=1;
-        soundPlayerPlay(soundsPortalgunShoot[1], 1.0f, 1.0f, NULL, NULL);
-    }
+        if ((fireBlue || (!hasOrange && fireOrange)) && hasBlue && !playerIsGrabbing(&scene->player)) {
+            sceneFirePortal(scene, &raycastRay, &playerUp, 1, scene->player.body.currentRoom, 1, 0);
+            scene->player.flags |= PlayerJustShotPortalGun;
+            scene->last_portal_indx_shot=1;
+            soundPlayerPlay(soundsPortalgunShoot[1], 1.0f, 1.0f, NULL, NULL);
+        }
 
-    if ((fireOrange || fireBlue) && playerIsGrabbing(&scene->player)){
-        playerSetGrabbing(&scene->player, NULL);
+        if ((fireOrange || fireBlue) && playerIsGrabbing(&scene->player)){
+            playerSetGrabbing(&scene->player, NULL);
+        }
     }
 
     scene->looked_wall_portalable_0 = 0;
