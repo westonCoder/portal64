@@ -4,11 +4,21 @@
 #include "./checkpoint.h"
 #include "../controls/controller_actions.h"
 
+#define SRAM_START_ADDR  0x08000000 
 #define SRAM_SIZE        0x8000 
 
-#define THUMBNAIL_IMAGE_SIZE    2048
+#define SAVEFILE_NO_SLOT    -1
 
-#define SAVE_SLOT_SIZE  (MAX_CHECKPOINT_SIZE + THUMBNAIL_IMAGE_SIZE)
+#define SAVE_SLOT_IMAGE_W   36
+#define SAVE_SLOT_IMAGE_H   27
+
+#define THUMBANIL_IMAGE_SIZE    (SAVE_SLOT_IMAGE_W * SAVE_SLOT_IMAGE_H * sizeof(u16))
+
+#define THUMBNAIL_IMAGE_SPACE    2048
+
+#define SAVE_SLOT_SIZE  (MAX_CHECKPOINT_SIZE + THUMBNAIL_IMAGE_SPACE)
+
+#define SCREEN_SHOT_SRAM(slotIndex)     (((slotIndex) + 1) * SAVE_SLOT_SIZE + MAX_CHECKPOINT_SIZE + SRAM_START_ADDR)
 
 #define SAVEFILE_HEADER 0xDEAD
 
@@ -19,15 +29,13 @@
 enum SavefileFlags {
     SavefileFlagsFirstPortalGun = (1 << 0),
     SavefileFlagsSecondPortalGun = (1 << 1),
-    SavefileFlagsHasAutosave = (1 << 2),
 };
 
 struct SaveHeader {
     unsigned header;
     unsigned char chapterProgress;
     unsigned char flags;
-    unsigned char saveSlotCount;
-    unsigned char nextSaveSlot;
+    unsigned char nextTestSubject;
 };
 
 struct ControlSaveState {
@@ -39,11 +47,21 @@ struct AudioSettingsSaveState {
     unsigned char musicVolume;
 };
 
+#define NO_TEST_CHAMBER         0xFF
+#define TEST_SUBJECT_AUTOSAVE   0xFF
+#define TEST_SUBJECT_MAX        99
+
+struct SaveSlotMetadata {
+    unsigned char testChamber;
+    unsigned char testSubjectNumber;
+    unsigned char saveSlotOrder;
+};
+
 struct SaveData {
     struct SaveHeader header;
     struct ControlSaveState controls;
     struct AudioSettingsSaveState audio;
-    unsigned char saveSlotTestChamber[MAX_SAVE_SLOTS];
+    struct SaveSlotMetadata saveSlotMetadata[MAX_SAVE_SLOTS];
 };
 
 struct SaveSlotInfo {
@@ -52,6 +70,7 @@ struct SaveSlotInfo {
 };
 
 extern struct SaveData gSaveData;
+extern int gCurrentTestSubject;
 
 void savefileLoad();
 void savefileSave();
@@ -60,8 +79,15 @@ void savefileSetFlags(enum SavefileFlags flags);
 void savefileUnsetFlags(enum SavefileFlags flags);
 int savefileReadFlags(enum SavefileFlags flags);
 
-void savefileSaveGame(Checkpoint checkpoint, int testChamberIndex, int isAutosave);
-int savefileListSaves(struct SaveSlotInfo* slots);
-void savefileLoadGame(int slot, Checkpoint checkpoint);
+void savefileSaveGame(Checkpoint checkpoint, u16* screenshot, int testChamberIndex, int subjectNumber, int slotIndex);
+int savefileListSaves(struct SaveSlotInfo* slots, int includeAuto);
+int savefileNextTestSubject();
+int savefileSuggestedSlot(int testSubject);
+int savefileOldestSlot();
+
+int savefileFirstFreeSlot();
+
+void savefileLoadGame(int slot, Checkpoint checkpoint, int* testChamberIndex, int* subjectNumber);
+void savefileLoadScreenshot(u16* target, u16* location);
 
 #endif

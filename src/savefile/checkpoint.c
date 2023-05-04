@@ -57,6 +57,11 @@ void checkpointClear() {
     gHasCheckpoint = 0;
 }
 
+void checkpointUse(Checkpoint checkpoint) {
+    memCopy(gCheckpoint, checkpoint, MAX_CHECKPOINT_SIZE);
+    gHasCheckpoint = 1;
+}
+
 int checkpointExists() {
     if (gHasCheckpoint != 0){
         return 1;
@@ -65,14 +70,26 @@ int checkpointExists() {
 }
 
 void checkpointSave(struct Scene* scene) {
-    int size = checkpointEstimateSize(scene);
+    gHasCheckpoint = checkpointSaveInto(scene, gCheckpoint);
+    gHasCheckpoint = 1;
+}
 
-    if (size > MAX_CHECKPOINT_SIZE) {
-        gHasCheckpoint = 0;
+void checkpointLoadLast(struct Scene* scene) {
+    if (!gHasCheckpoint) {
         return;
     }
 
-    void* curr = gCheckpoint;
+    checkpointLoadLastFrom(scene, gCheckpoint);
+}
+
+int checkpointSaveInto(struct Scene* scene, Checkpoint into) {
+    int size = checkpointEstimateSize(scene);
+
+    if (size > MAX_CHECKPOINT_SIZE) {
+        return 0;
+    }
+
+    void* curr = into;
 
     int binCount = SIGNAL_BIN_COUNT(gSignalCount);
     curr = checkpointWrite(curr, sizeof(unsigned long long) * binCount, gSignals);
@@ -91,19 +108,15 @@ void checkpointSave(struct Scene* scene) {
         currCutscene = currCutscene->nextRunner;
     }
 
-    curr = checkpointWrite(curr, sizeof(struct PartialTransform), &scene->player.body.transform);
+    curr = checkpointWrite(curr, sizeof(struct PartialTransform), &scene->player.lookTransform);
 
     curr = checkpointWrite(curr, sizeof (gTriggeredCutscenes), &gTriggeredCutscenes);
 
-    gHasCheckpoint = 1;
+    return 1;
 }
 
-void checkpointLoadLast(struct Scene* scene) {
-    if (!gHasCheckpoint) {
-        return;
-    }
-
-    void* curr = gCheckpoint;
+void checkpointLoadLastFrom(struct Scene* scene, Checkpoint from) {
+    void* curr = from;
 
     int binCount = SIGNAL_BIN_COUNT(gSignalCount);
     curr = checkpointRead(curr, sizeof(unsigned long long) * binCount, gSignals);
@@ -120,7 +133,8 @@ void checkpointLoadLast(struct Scene* scene) {
         cutsceneStartSerialized(&cutscene);
     }
 
-    curr = checkpointRead(curr, sizeof(struct PartialTransform), &scene->player.body.transform);
+    curr = checkpointRead(curr, sizeof(struct PartialTransform), &scene->player.lookTransform);
+    scene->player.body.transform.position = scene->player.lookTransform.position;
     scene->player.body.velocity = gZeroVec;
 
     curr = checkpointRead(curr, sizeof (gTriggeredCutscenes), &gTriggeredCutscenes);
