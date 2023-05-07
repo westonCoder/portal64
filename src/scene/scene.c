@@ -76,10 +76,14 @@ void sceneInitDynamicColliders(struct Scene* scene) {
 
 void sceneInit(struct Scene* scene) {
     sceneInitNoPauseMenu(scene);
+    
+    gameMenuInit(&gGameMenu, gPauseMenuOptions, sizeof(gPauseMenuOptions) / sizeof(*gPauseMenuOptions), 1);
+
     if (!checkpointExists()) {
         checkpointSave(scene);
+    } else {
+        checkpointLoadLast(scene);
     }
-    gameMenuInit(&gGameMenu, gPauseMenuOptions, sizeof(gPauseMenuOptions) / sizeof(*gPauseMenuOptions), 1);
 
     gGameMenu.state = GameMenuStateResumeGame;
 }
@@ -119,16 +123,22 @@ void sceneInitNoPauseMenu(struct Scene* scene) {
         buttonInit(&scene->buttons[i], &gCurrentLevel->buttons[i]);
     }
 
-    scene->decorCount = gCurrentLevel->decorCount;
-    scene->decor = malloc(sizeof(struct DecorObject*) * scene->decorCount);
+    if (checkpointExists()) {
+        // if a checkpoint exists it will load the decor
+        scene->decorCount = 0;
+        scene->decor = NULL;
+    } else {
+        scene->decorCount = gCurrentLevel->decorCount;
+        scene->decor = malloc(sizeof(struct DecorObject*) * scene->decorCount);
 
-    for (int i = 0; i < scene->decorCount; ++i) {
-        struct DecorDefinition* decorDef = &gCurrentLevel->decor[i];
-        struct Transform decorTransform;
-        decorTransform.position = decorDef->position;
-        decorTransform.rotation = decorDef->rotation;
-        decorTransform.scale = gOneVec;
-        scene->decor[i] = decorObjectNew(decorObjectDefinitionForId(decorDef->decorId), &decorTransform, decorDef->roomIndex);
+        for (int i = 0; i < scene->decorCount; ++i) {
+            struct DecorDefinition* decorDef = &gCurrentLevel->decor[i];
+            struct Transform decorTransform;
+            decorTransform.position = decorDef->position;
+            decorTransform.rotation = decorDef->rotation;
+            decorTransform.scale = gOneVec;
+            scene->decor[i] = decorObjectNew(decorObjectDefinitionForId(decorDef->decorId), &decorTransform, decorDef->roomIndex);
+        }
     }
 
     scene->doorCount = gCurrentLevel->doorCount;
@@ -705,7 +715,6 @@ int sceneDynamicBoxIndex(struct Scene* scene, struct CollisionObject* hitObject)
 
     return hitObject - scene->dynamicColliders;
 }
-
 
 
 
