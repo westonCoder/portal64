@@ -498,10 +498,6 @@ void dynamicBroadphaseSort(union DynamicBroadphaseEdge* edges, union DynamicBroa
 }
 
 void collisionObjectCollidePairMixed(struct CollisionObject* a, struct Vector3* aPrevPos, struct Box3D* sweptA, struct CollisionObject* b, struct Vector3* bPrevPos, struct Box3D* sweptB, struct ContactSolver* contactSolver) {
-    if (a->body->flags & RigidBodyIsPlayer && b->body->flags & RigidBodyFlagsGrabbable){
-        return;
-    }
-
     if (a->manifoldIds & b->manifoldIds) {
         collisionObjectCollideTwoObjects(a, b, contactSolver);
     } else {

@@ -210,6 +210,11 @@ void playerHandleCollision(struct Player* player) {
             // objects being grabbed by the player shouldn't push the player
             continue;
         }
+
+        if (contact->shapeB->body->flags & RigidBodyFlagsGrabbable && contact->shapeA->body->flags & RigidBodyIsPlayer) {
+            // grabbable objects shouldnt push the player
+            continue;
+        }
         
         if (offset != 0.0f) {
             vector3AddScaled(
@@ -824,10 +829,15 @@ void playerUpdate(struct Player* player, struct Transform* cameraTransform) {
 
 void playerSerialize(struct Serializer* serializer, SerializeAction action, struct Player* player) {
     action(serializer, &player->lookTransform, sizeof(struct PartialTransform));
+    action(serializer, &player->body.velocity, sizeof(player->body.velocity));
+    action(serializer, &player->flags, sizeof(player->flags));
 }
 
 void playerDeserialize(struct Serializer* serializer, struct Player* player) {
     serializeRead(serializer, &player->lookTransform, sizeof(struct PartialTransform));
     player->body.transform.position = player->lookTransform.position;
     player->body.velocity = gZeroVec;
+
+    serializeRead(serializer, &player->body.velocity, sizeof(player->body.velocity));
+    serializeRead(serializer, &player->flags, sizeof(player->flags));
 }
