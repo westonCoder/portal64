@@ -7,6 +7,7 @@
 #include "../util/memory.h"
 #include "../scene/portal.h"
 #include "../levels/levels.h"
+#include "../scene/scene.h"
 
 struct CollisionScene gCollisionScene;
 
@@ -327,6 +328,23 @@ void collisionSceneRaycastRoom(struct CollisionScene* scene, struct Room* room, 
             }
 
             if (raycastQuad(collisionObject, ray, hit->distance, &hitTest) && hitTest.distance < hit->distance && vector3Dot(&hitTest.normal, &ray->dir) < 0.0f) {
+                hit->at = hitTest.at;
+                hit->normal = hitTest.normal;
+                hit->distance = hitTest.distance;
+                hit->object = hitTest.object;
+            }
+        }
+
+        for (int i = 0; i < gScene.fizzlerCount; ++i) {
+            struct RaycastHit hitTest;
+
+            struct CollisionObject* collisionObject = &gScene.fizzlers[i].collisionObject;
+
+            if ((collisionObject->collisionLayers & collisionLayers) == 0) {
+                continue;
+            }
+
+            if (raycastBox(collisionObject, ray, hit->distance, &hitTest) && hitTest.distance < hit->distance && vector3Dot(&hitTest.normal, &ray->dir) < 0.0f) {
                 hit->at = hitTest.at;
                 hit->normal = hitTest.normal;
                 hit->distance = hitTest.distance;
