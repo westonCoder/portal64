@@ -18,6 +18,7 @@ cutscenes:
     - q_sound 03_PART2_PLATFORM_ACTIVATED_1 CH_GLADOS PORTAL_03_PART2_PLATFORM_ACTIVATED_1
   INTRO:
     - save_checkpoint 0
+    - delay 2
     - open_portal ground_portal 0
     - q_sound SOUNDS_03_PART1_ENTRY_1 CH_GLADOS PORTAL_03_PART1_ENTRY_1
     - q_sound SOUNDS_03_PART1_ENTRY_2 CH_GLADOS PORTAL_03_PART1_ENTRY_2
