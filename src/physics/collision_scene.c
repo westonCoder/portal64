@@ -484,6 +484,62 @@ int collisionSceneRaycast(struct CollisionScene* scene, int roomIndex, struct Ra
     return hit->distance != maxDistance;
 }
 
+int collisionSceneRaycastCheckBothPortals(struct CollisionScene* scene, int roomIndex, struct Ray* ray, int collisionLayers, float maxDistance, int passThroughPortals, struct RaycastHit* hit) {
+    hit->distance = maxDistance;
+    hit->throughPortal = NULL;
+    hit->roomIndex = roomIndex;
+
+    int roomsToCheck = 5;
+
+    while (roomsToCheck && roomIndex != -1) {
+        struct Room* room = &scene->world->rooms[roomIndex];
+        collisionSceneRaycastRoom(scene, room, ray, collisionLayers, hit);
+
+        if (hit->distance != maxDistance) {
+            hit->roomIndex = roomIndex;
+            break;
+        }
+
+        int nextRoom = collisionSceneRaycastDoorways(scene, room, ray, hit->distance, roomIndex);
+
+        roomIndex = nextRoom;
+
+        // even on a miss, the raycast should report which room it ended up in
+        if (roomIndex != -1) {
+            hit->roomIndex = roomIndex;
+        }
+
+        --roomsToCheck;
+    }
+
+    collisionSceneRaycastDynamic(scene, ray, collisionLayers, hit);
+
+    if (passThroughPortals &&
+        collisionSceneIsPortalOpen()) {
+        for (int i = 0; i < 2; ++i) {
+            if (collisionSceneIsTouchingSinglePortal(&hit->at, &hit->normal, gCollisionScene.portalTransforms[i], i)) {
+                struct Transform portalTransform;
+                collisionSceneGetPortalTransform(i, &portalTransform);
+
+                struct Ray newRay;
+
+                transformPoint(&portalTransform, &hit->at, &newRay.origin);
+                quatMultVector(&portalTransform.rotation, &ray->dir, &newRay.dir);
+
+                struct RaycastHit newHit;
+
+                collisionSceneRaycast(scene, gCollisionScene.portalRooms[1 - i], &newRay, collisionLayers, maxDistance - hit->distance, 0, &newHit);
+
+                if (collisionSceneIsTouchingSinglePortal(&newHit.at, &newHit.normal, gCollisionScene.portalTransforms[i], i) ||
+                    collisionSceneIsTouchingSinglePortal(&newHit.at, &newHit.normal, gCollisionScene.portalTransforms[1-i], 1-i)) {
+                    return 1;
+                }
+            }
+        }
+    }
+    return 0;
+}
+
 void collisionSceneGetPortalTransform(int fromPortal, struct Transform* out) {
     struct Transform inverseA;
     transformInvert(gCollisionScene.portalTransforms[fromPortal], &inverseA);

@@ -357,6 +357,26 @@ void playerUpdateGrabbedObject(struct Player* player) {
         playerSetGrabbing(player, NULL);
     }
 
+    // drop held object if player raycast passes through two portals
+    if (player->grabConstraint.object){
+        struct RaycastHit testerHit;
+        struct Ray testerRay;
+        testerRay.origin = player->lookTransform.position;
+        quatMultVector(&player->lookTransform.rotation, &gForward, &testerRay.dir);
+        vector3Negate(&testerRay.dir, &testerRay.dir);
+        short originalObjectCollisionLayers = player->grabConstraint.object->collisionLayers;
+        player->collisionObject.collisionLayers = 0;
+        player->grabConstraint.object->collisionLayers = 0;
+        if (collisionSceneRaycastCheckBothPortals(&gCollisionScene, player->body.currentRoom, &testerRay, COLLISION_LAYERS_TANGIBLE, GRAB_RAYCAST_DISTANCE, 1, &testerHit)){
+            player->grabConstraint.object->collisionLayers = originalObjectCollisionLayers;
+            player->collisionObject.collisionLayers = PLAYER_COLLISION_LAYERS;
+            playerSetGrabbing(player, NULL);
+            return;
+        }
+        player->collisionObject.collisionLayers = PLAYER_COLLISION_LAYERS;
+        player->grabConstraint.object->collisionLayers = originalObjectCollisionLayers;
+    }
+
     if (player->grabConstraint.object) {
         if (player->body.flags & RigidBodyFlagsCrossedPortal0) {
             playerApplyPortalGrab(player, 1);
